@@ -1,6 +1,8 @@
 = SBOMer Project Documentation
-:page-title: SBOMer Project Documentation
-:page-description: Documentation for the SBOMer Project, including engineering resources and guides.
+:page-layout: home
 
-Welcome to the SBOMer Project Documentation hub.
+Welcome to the central documentation hub. This site aggregates resources from across the project.
 
+== Navigation
+* xref:overview.adoc[System Overview] - High-level architecture.
+* xref:sbomer-ui::index.adoc[SBOMer UI Docs] - Frontend details.
