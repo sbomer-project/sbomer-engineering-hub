@@ -3,6 +3,12 @@
 
 Welcome to the central documentation hub. This site aggregates resources from across the project.
 
-== Navigation
-* xref:overview.adoc[System Overview] - High-level architecture.
-* xref:sbomer-ui::index.adoc[SBOMer UI Docs] - Frontend details.
+## Navigation
+* xref:overview.adoc[System Overview]
+* xref:sbomer-ui::index.adoc[UI Documentation]
+
+
+---
+
+Note:
+Since there are two versions of the SBOMer system, this documenation refers to the newer version, also known as SBOMer Nextgen. The older version, reffered to as SBOMer Classic has related documenation in its own repository: https://github.com/sbomer-project/sbomer 
