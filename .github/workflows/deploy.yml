@@ -21,7 +21,7 @@ jobs:
           node-version: 20
       - name: Install & Build
         run: |
-          npm install @antora/site-generator asciidoctor-kroki
+          npm install @antora/site-generator asciidoctor-kroki @antora/lunr-extension
           npx antora antora-playbook.yml --to-dir public
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3

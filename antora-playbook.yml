@@ -2,6 +2,11 @@ site:
   title: SBOMer Project
   url: https://sbomer-project.github.io/sbomer-engineering-hub/
   start_page: sbomer-project-documentation::index.adoc
+
+antora:
+  extensions:
+    - require: '@antora/lunr-extension'
+
 content:
   sources:
     - url: .
@@ -10,8 +15,13 @@ content:
     - url: https://github.com/sbomer-project/sbomer-ui.git
       branches: main
       start_path: docs
+      
 ui:
   bundle:
     url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
     snapshot: true
   supplemental_files: ./supplemental-ui
+
+asciidoc:
+  extensions:
+    - asciidoctor-kroki
