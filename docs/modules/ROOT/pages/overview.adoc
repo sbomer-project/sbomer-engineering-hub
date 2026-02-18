@@ -53,14 +53,15 @@ Once the initial request is received by the link:https://github.com/sbomer-proje
 
 ### Generators and Enhancers
 There are two logical caregories of components that do the actual work of generating and enhancing the SBOM:
+
 * Generators - components that take generation details and produce an SBOM in a certain format.
 For example, we can have a component that takes a container image as an input and produces an SBOM in CycloneDX format as an output.
 
-A good example is link:https://github.com/sbomer-project/syft-generator[Syft Generator], which uses the Syft tool to generate SBOMs in various formats from various sources.
+** A good example is link:https://github.com/sbomer-project/syft-generator[Syft Generator], which uses the Syft tool to generate SBOMs in various formats from various sources.
 
 * Enhancers - components that take an SBOM and enhance it with additional information. For example, we can have a component that takes an SBOM and adds vulnerability information to it by querying a vulnerability database.
 
-Per Request event, we have just one generator, but we can have multiple enhancers
+Per Request event, we have just one generator, but we can have multiple enhancers.
 
 ### Post-Generation components
 Once the SBOM is generated and enhanced, we can have components that do something with it.
