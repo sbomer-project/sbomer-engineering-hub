@@ -1,0 +1,69 @@
+# Development Guide
+
+This document is a guide for developers who want to contribute to the project. It provides an overview of the development process, tools, and best practices.
+
+
+## Development Process
+
+Each of the components is developed in its own repository under the sbomer-project organization on GitHub.
+
+The following are based based around link:https://github.com/sbomer-project/sbom-service[sbom-service component], but the general principles apply to all components, each components has its own scripts customized for that component.
+
+
+:sectnums!:
+## 0. Setup environment
+To deploy the system locally, we deploy all the necesarry components using Helm to the local Minikube Kuberntetes cluster. In addition to the components, we need to install Tekton to the cluster since we are using Tekton pipelines to orchestrate the generation process.
+
+
+Scripts for setting up the environment can be found in the `scripts` directory.
+
+
+
+Run
+[source,bash] 
+----
+bash setup-local-dev.sh
+----
+from the root directory to setup the Minikube local cluster environment.
+
+This has to be done only once. You do not need to run this while changing the component code.
+
+:sectnums: 
+
+## Build into cluster
+
+Run 
+[source,bash]
+----
+bash ./hack/run-helm-with-local-build.sh
+----
+to deploy all the components to the local cluster `sbomer-test`.
+
+Component versions, apart from the current component, which is build from the current (changed) core are decided central helm chart in link:https://github.com/sbomer-project/sbomer-platform[sbomer-platform] repoitory.
+
+## Test
+
+Upon succesfful deployment, you should see all the pods running or completed.
+
+To view pods, run
+[source,bash]
+----
+kubectl get pods -n sbomer-test
+----
+
+To gain acces to the gateway, which is the entry point to the system (UI, API, other component ports), expose it by running
+[source,bash]
+----
+kubectl port-forward svc/sbomer-release-gateway 8080:8080 -n sbomer-test
+----
+
+Now the system is fully deployed.
+
+Depending on the component, you can additionaly test it using curl or UI.
+
+For example, if you are working on the sbom-service, you can send a request to the API to trigger a generation and see how it is processed by the system.
+
+
+---
+
+Note: Some components can be developed on their own, such us sbom-service API, so you don't need to deploy the whole system to test it.
