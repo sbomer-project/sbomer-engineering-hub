@@ -15,7 +15,8 @@ The functionality of the system  can be simply described by this diagram:
 
 [mermaid]
 ....
-graph LR
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 50}}}%%
+flowchart LR
     Input(Input:Request Event) -->|Contains Generation Details| Service[SBOMer Service]
     Service -->|Orchestrates Generation| Output(Output: SBOM)
 ....
