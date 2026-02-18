@@ -1,5 +1,5 @@
 * xref:index.adoc[Welcome]
-* xref:overview.adoc[Architecture Overview]
+* xref:overview.adoc[System Overview]
 * xref:development-guide.adoc[Development Guide]
 
 .Project Components

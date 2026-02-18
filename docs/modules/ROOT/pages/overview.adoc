@@ -1,17 +1,17 @@
 # Overview
 
-SBOMer system is multi-component services-based system used to generate SBOMs in various formats from various sources. System components follow link:https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)[Hexagonal Architecture].
+SBOMer system is a multi-component services-based system used to generate SBOMs in various formats from various sources. The system components follow link:https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)[Hexagonal Architecture].
 
 ## Main purpose
 
-The purpose of SBOMer system is to generate SBOMs in various formats from various sources (such us build artifacts, container images). 
+The purpose of the SBOMer system is to generate SBOMs in various formats from various sources (such as build artifacts, container images). 
 
 ## System Architecture
 
 The system currently consists of multiple components, which communicate with each other using the Kafka messaging system.
 
 
-The functionality of the system  can be simply described by this diagram:
+The functionality of the system can be simply described by this diagram:
 
 [mermaid]
 ....
@@ -25,7 +25,7 @@ flowchart LR
 ---
 However, there is much more to the system. 
 
-We can plug in and plug out various components as we please, but generally we categorize the component into categories (these categories are not enforced in any way, they are just a way to understand the system better):
+We can plug in and unplug various components as we please, but generally we categorize the components into categories (these categories are not enforced in any way, they are just a way to understand the system better):
 
 * Pre-Request event components
 * Post-Request event components
@@ -36,24 +36,24 @@ We can plug in and plug out various components as we please, but generally we ca
 
 
 
-### Pre - Initial Request event components
+### Pre-Initial Request event components
 
-The entry point of the system is the Request event (currently `requests.created` Kafka message is the initiation of the whole process). This event is an entity which contains all the generation detail. 
+The entry point of the system is the Request event (currently the `requests.created` Kafka message is the initiation of the whole process). This event is an entity which contains all the generation details. 
 
-However, since source of the details can be various, can be produced by various systems and can be producen in various formats, we can have components that serve as an adapter between the source and the Request event.
+However, since the source of the details can vary, can be produced by various systems and can be produced in various formats, we can have components that serve as an adapter between the source and the Request event.
 
-For example, we can trigger a generation by clicking a button in the UI or when a pipeline of our build system reaches a certain step. Completely customizable and adaptable, we just need to have a component that can produce the Request event from the source.
-
-
-One example of such component is the link:https://github.com/sbomer-project/errata-tool-handler[Errata Tool Handler]. This component listtens to build systems and produces Request events based on the type of the build and the details of the build. It can possibly fetch additional information fromother systems to construct the Request event.
+For example, we can trigger a generation by clicking a button in the UI or when a pipeline of our build system reaches a certain step. It is completely customizable and adaptable; we just need to have a component that can produce the Request event from the source.
 
 
-### Post - Initial Request event components
+One example of such a component is the link:https://github.com/sbomer-project/errata-tool-handler[Errata Tool Handler]. This component listens to build systems and produces Request events based on the type of the build and the details of the build. It can also fetch additional information from other systems to construct the Request event.
+
+
+### Post-Initial Request event components
 
 Once the initial request is received by the link:https://github.com/sbomer-project/sbom-service[sbom-service], the sbom generation process starts. The sbom-service is responsible for orchestrating the whole process, but the actual work of generating and enhancing the SBOM is done by other components.
 
 ### Generators and Enhancers
-There are two logical caregories of components that do the actual work of generating and enhancing the SBOM:
+There are two logical categories of components that do the actual work of generating and enhancing the SBOM:
 
 * Generators - components that take generation details and produce an SBOM in a certain format.
 For example, we can have a component that takes a container image as an input and produces an SBOM in CycloneDX format as an output.
@@ -66,7 +66,7 @@ Per Request event, we have just one generator, but we can have multiple enhancer
 
 ### Post-Generation components
 Once the SBOM is generated and enhanced, we can have components that do something with it.
-For example we can have a component that analyzes the SBOM and produces a report based on it. If it meets certain criteria, it can be forwarded to another component, which publishes it furhter down our production pipeline.
+For example, we can have a component that analyzes the SBOM and produces a report based on it. If it meets certain criteria, it can be forwarded to another component, which publishes it further down our production pipeline.
 
 
 
@@ -76,7 +76,7 @@ There are other supporting components that are not directly involved in the gene
 These components include:
 
 * Kafka - the messaging system that allows components to communicate with each other.
-* Database(s), S3 Storages - used to store generation details,statuses, SBOMs, and other relevant information.
+* Database(s), S3 storage - used to store generation details, statuses, SBOMs, and other relevant information.
 * Contracts - Manages schemas and contracts between components. Since the system is based on asynchronous communication, it is essential to have a clear contract between components to ensure that they can communicate effectively without being tightly coupled.
 * Tekton - currently the generations are processed in Tekton pipelines, but this is not a requirement. We can have any component that can orchestrate the generation process, but currently we are using Tekton for that purpose.
 * Logging and monitoring components - since the system is distributed and asynchronous, it is essential to have good logging and monitoring in place to be able to debug issues and understand the system's behavior.
