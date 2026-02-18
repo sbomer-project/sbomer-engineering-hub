@@ -1,6 +1,6 @@
 * xref:index.adoc[Welcome]
 * xref:overview.adoc[Architecture Overview]
-* xref:development.adoc[Development Guide]
+* xref:development-guide.adoc[Development Guide]
 
 .Project Components
 * xref:sbomer-ui::index.adoc[SBOMer UI]
