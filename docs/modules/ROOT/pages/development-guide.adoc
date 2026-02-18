@@ -15,7 +15,7 @@ The following are based based around link:https://github.com/sbomer-project/sbom
 To deploy the system locally, we deploy all the necesarry components using Helm to the local Minikube Kuberntetes cluster. In addition to the components, we need to install Tekton to the cluster since we are using Tekton pipelines to orchestrate the generation process.
 
 
-Scripts for setting up the environment can be found in the `scripts` directory.
+Scripts for setting up the environment can be found in the `hack` directory.
 
 
 
