@@ -1,6 +1,7 @@
 * xref:index.adoc[Welcome]
 * xref:overview.adoc[System Overview]
 * xref:development-guide.adoc[Development Guide]
+* xref:observability-standards.adoc[Observability Standards]
 
 .Project Components
 * xref:sbomer-ui::index.adoc[SBOMer UI]

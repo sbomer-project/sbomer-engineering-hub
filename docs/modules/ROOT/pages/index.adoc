@@ -6,6 +6,7 @@ Welcome to the central documentation hub. This site aggregates resources from ac
 ## Navigation
 * xref:overview.adoc[System Overview]
 * xref:development-guide.adoc[Development Guide]
+* xref:observability-standards.adoc[Observability Standards]
 * xref:sbomer-ui::index.adoc[UI Documentation]
 
 

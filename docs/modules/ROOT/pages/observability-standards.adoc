@@ -1,0 +1,350 @@
+= Observability Standards
+:toc:
+:toclevels: 3
+
+Standards for observability across SBOMer services.
+
+== Trace Context
+
+The key component is the link:https://www.w3.org/TR/trace-context/#traceparent-header[traceparent header], which consists of: `00-<traceId>-<spanId>-<traceFlags>`
+
+== Required Config to Enable Quarkus OTel
+
+=== App Config
+
+[source,properties]
+----
+quarkus.otel.enabled=true
+quarkus.otel.traces.enabled=true
+quarkus.otel.traces.sampler=always_on
+quarkus.otel.metrics.enabled=true
+quarkus.otel.logs.enabled=true
+----
+
+=== Helm Config
+
+[source,yaml]
+----
+- name: QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT
+  value: {{ .Values.config.otel.endpoint }}
+- name: QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL
+  value: {{ .Values.config.otel.protocol }}
+- name: QUARKUS_OTEL_RESOURCE_ATTRIBUTES
+  value: "service.name=sbomer-<service-name>"
+----
+
+=== Dependencies
+
+[source,xml]
+----
+<dependency>
+  <groupId>io.quarkus</groupId>
+  <artifactId>quarkus-micrometer-opentelemetry</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.quarkus</groupId>
+  <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+</dependency>
+----
+
+== Required Config to Enable Bash Task Step OTel
+
+=== Helm Config
+
+[source,yaml]
+----
+- name: TRACEPARENT
+  value: "$(params.trace-parent)"
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "{{ .Values.task.otel.endpoint }}"
+- name: OTEL_SERVICE_NAME
+  value: "sbomer-<service-name>"
+- name: OTEL_SERVICE_VERSION
+  value: "{{ .Values.task.otel.serviceVersion }}"
+----
+
+== Quarkus OTel Auto-Instrumentation
+
+Auto-instrumentation handles auto-propagation of trace context for the following:
+
+=== HTTP Requests
+
+* *Incoming* - Server span created. The traceparent header is read from the incoming request if it exists so that it can become a child span of the span referenced in the traceparent, otherwise a new trace ID is generated and it becomes the root span of the trace.
+* *Outgoing* - Client span created. The traceparent header is built based on its parent span and put into the outgoing request.
+
+=== Database (JDBC) Calls
+
+Requires `quarkus.datasource.jdbc.telemetry=true`
+
+* *Outgoing* - Client span created. The span exists locally for the duration of the call, as a child of the parent span.
+
+=== Kafka Messages
+
+* *Consuming* - Consumer span created. The traceparent header is read from the consumed message if it exists so that it can become a child span of the span referenced in the traceparent, otherwise a new trace ID is generated and it becomes the root span of the trace.
+* *Producing* - Producer span created. The traceparent header is built based on its parent span and put into the produced message.
+
+=== S3 Calls
+
+Requires `quarkus.s3.telemetry.enabled=true`
+
+* *Outgoing* - Client span created. The span exists locally for the duration of the call, as a child of the parent span.
+
+== HTTP Clients Not Auto-Instrumented by Quarkus OTel
+
+Quarkus OTel auto-instrumentation only creates client spans for outgoing HTTP requests made through the *Quarkus REST Client* (`@RegisterRestClient` / `RestClientBuilder`). HTTP calls made with `java.net.http.HttpClient`, Apache HttpClient, or OkHttp are *not auto-instrumented* and will not produce client spans with status codes, URLs, or timing.
+
+If a service uses a non-Quarkus HTTP client:
+
+* Add `@WithSpan` to the method making the call so it appears in traces.
+* Add `@SpanAttribute` on relevant parameters (e.g. URL, identifier) so they are searchable.
+* Accept that HTTP-level detail (status code, response time breakdown) will not be available on the span.
+
+When possible, prefer the Quarkus REST Client for outgoing HTTP calls to get full auto-instrumentation. If `java.net.http.HttpClient` is used intentionally, document the tradeoff and ensure `@WithSpan` coverage exists.
+
+== Manual Propagation of OTel Trace Context
+
+These are cases where work continues across a boundary that isn't HTTP or Kafka, in a different time or context than the original span. So far it is just syft-generator that has these, but we can use this same pattern for similar scenarios.
+
+=== Scheduled Processing
+
+*In-memory queue* - traceparent stored in `GenerationTask`, child span manually created in `GeneratorService`.
+
+Kafka consumer span ends after we put the `GenerationTask` in `GeneratorService.pendingQueue`. Periodically we process tasks from this queue, without a span. To solve this we capture the consumer span traceparent header and store it in the `GenerationTask`, so that we can create a child span of the span referenced in the traceparent when dequeing in `GeneratorService.processQueue`.
+
+=== Kubernetes Resource Change
+
+*Async callback* - traceparent persisted in `TaskRun` annotation, child span manually created in `TaskReconciler`.
+
+A `TaskRun` is scheduled after we dequeue the `GenerationTask` from `GeneratorService.pendingQueue`, however this is where the internal span ends. A change to the `TaskRun` resource triggers the `TaskReconciler`, without a span. To solve this we store the traceparent header in a `sbomer.jboss.org/traceparent` annotation in the `TaskRun`, so that we can create a child span of the span referenced in the traceparent when reconciling in `TaskReconciler.reconcile`.
+
+=== Tekton Pod Execution
+
+Requires OTel helpers script, which is currently a config map link:https://github.com/sbomer-project/sbomer-platform/blob/main/files/otel-helpers.sh[in sbomer-platform].
+
+*Process boundary* - traceparent passed as Tekton parameter, child spans manually created in Bash via OTel helpers in each step.
+
+The `GeneratorService.processQueue` creates the `TaskRun` but has no control over what runs inside the pod, which runs without a span. To solve this we pass the traceparent header in a `trace-parent` Tekton parameter during `TaskRun` creation in `TaskRunFactory`, which maps to a `TRACEPARENT` environment variable in each step, so that OTel helpers in Bash can create child spans.
+
+== @WithSpan for Non-Auto-Instrumented Business Logic
+
+Use `@WithSpan` on CDI bean methods that are called within an existing trace but aren't auto-instrumented entry points (not HTTP endpoints, Kafka consumers/producers, JDBC calls, or S3 calls). This creates a child span showing the method's execution time and any errors within the parent trace.
+
+Do not use `@WithSpan` on:
+
+* Methods already covered by auto-instrumentation (HTTP endpoints, Kafka consumers, etc.).
+* Methods that already create manual spans (e.g. `GeneratorService.processQueue`).
+* Private helper methods or simple getters - only annotate methods with meaningful business logic.
+
+Use `@SpanAttribute` on method parameters that are business IDs, so they appear as searchable span attributes:
+
+[source,java]
+----
+@WithSpan
+public void handleUpdate(@SpanAttribute("generation.id") String generationId, ...)
+----
+
+== Error Handling on Spans
+
+=== Manual Error Recording
+
+When catching exceptions within a span, always record both the exception and the error status:
+
+[source,java]
+----
+span.recordException(e);
+span.setStatus(StatusCode.ERROR, e.getMessage());
+----
+
+Both calls are needed. `recordException` attaches the stack trace as a span event. `setStatus` marks the span as failed so it appears as an error in Tempo and is counted in spanmetrics error rates.
+
+For `@WithSpan` methods, uncaught exceptions are recorded automatically. Only add manual error recording when the exception is caught and handled within the method.
+
+=== REST Endpoint Error Handling
+
+Let exceptions propagate out of endpoint methods rather than catching them. Auto-instrumentation records the exception on the server span automatically. Use `@Provider` `ExceptionMapper` to control the HTTP response:
+
+[source,java]
+----
+@Provider
+@Slf4j
+public class GenericExceptionMapper implements ExceptionMapper<Exception> {
+    @Override
+    public Response toResponse(Exception e) {
+        log.error("Unhandled exception in REST endpoint: {}", e.getMessage(), e);
+        return Response.serverError().entity(e.getMessage()).build();
+    }
+}
+----
+
+Each service should define its own domain-specific exceptions and mappers based on its exception semantics (e.g. a `StorageException` base class that carries its own status code, or `EntityNotFoundException` \-> 404). A `GenericExceptionMapper` for `Exception` should always exist as a catch-all that logs the error and returns 500.
+
+== What to Do When OTel Trace Context is Missing
+
+If possible continue with an existing context via manual propagation. Otherwise create a new root span. We should not drop context as that prevents us from having full observability.
+
+== Span Naming Convention for Manual Propagation
+
+* *Java:* ClassName.methodName - e.g. `GeneratorService.processQueue`, `TaskReconciler.reconcile`.
+* *Java (@WithSpan):* Automatically derived as `ClassName.methodName`, matching the manual convention.
+* *Bash (step spans):* Auto-prefixed with `step-` - e.g. `step-inspect`, `step-generate`, `step-upload`.
+* *Bash (child spans):* Tool operation with optional variant suffix - e.g. `skopeo-inspect-raw`, `syft-scan-linux-amd64`, `curl-upload`.
+
+== Span Attributes for Business Context
+
+Use dotted naming for business identifiers so they are searchable in Tempo. Add these via `@SpanAttribute` or `span.setAttribute()` where relevant. For instance:
+
+* generation.id
+* enhancement.id
+* advisory.id
+* target.image
+* retry.count
+
+Span attributes passed to `otel_start_span` (including `step.name`) are automatically inherited by child spans (`otel_trace`) and OTLP log records (`otel_log`). Metrics only include `step.name` as a datapoint attribute (see Metric naming). Business identifiers like `generation.id` are available on spans, logs, and via metric exemplar \-> trace drill-down.
+
+== Resource Attributes
+
+All telemetry (traces, metrics, and logs) must include these resource attributes. Quarkus OTel sets them automatically. In manually created Bash telemetry they must be explicitly set via OTel helpers.
+
+* service.name - e.g. sbomer-syft-generator-taskrun
+* service.version - e.g. 1.0.0-SNAPSHOT
+* host.name - e.g. pod name
+* telemetry.sdk.language - e.g. bash
+* telemetry.sdk.name - e.g. bash-otel
+* step.name - e.g. step-inspect, step-generate, step-upload (Bash task steps only)
+
+== Kubernetes Log Format
+
+All services running in the SBOMer platform must include W3C trace context fields in their Kubernetes pod logs:
+
+`traceId=%X{traceId} parentId=%X{parentId} spanId=%X{spanId}`
+
+This enables log-to-trace correlation in Grafana (Loki \-> Tempo) in situations where we are able scrape Kubernetes pod logs instead of using OTLP to ingest logs.
+
+=== Quarkus Services
+
+Set the console log format in application.properties:
+
+[source,properties]
+----
+quarkus.log.console.format=%d{HH:mm:ss} %-5p traceId=%X{traceId} parentId=%X{parentId} spanId=%X{spanId} [%c{2.}] (%t) %s%e%n
+----
+
+The `%X{...}` placeholders are populated automatically by the Quarkus OpenTelemetry extension when `quarkus.otel.enabled=true`
+
+=== Bash Task Steps (Tekton TaskRuns)
+
+Use the `otel_tee` helper after `otel_start_span` to prefix each stdout line:
+
+[source,bash]
+----
+otel_start_span "generate" generation.id=foo
+otel_tee "$(workspaces.data.path)/logs/step.log"
+----
+
+This produces the same `traceId=... parentId=... spanId=...` prefix format on pod stdout.
+
+== Metric Naming
+
+Custom OTLP metrics in Tekton TaskRuns follow the `sbomer.taskrun.<category>.<measurement>` naming convention. The source is identified by the `service.name` resource attribute, not the metric name.
+
+[source]
+----
+sbomer.taskrun.image.architectures
+sbomer.taskrun.sbom.bytes
+sbomer.taskrun.sbom.components
+sbomer.taskrun.upload.bytes
+sbomer.taskrun.upload.files
+----
+
+These become `sbomer_taskrun_*` in Prometheus/Mimir. Query with `last_over_time()` for exact per-TaskRun values:
+
+[source,promql]
+----
+last_over_time(sbomer_taskrun_sbom_components[$__rate_interval])
+----
+
+Metrics use cumulative counter type (OTLP Sum with `aggregationTemporality=CUMULATIVE`, `isMonotonic=true`) so exemplars are preserved in Prometheus/Mimir. Gauge exemplars are silently dropped during OTLP-to-Prometheus/Mimir conversion. Each metric sends two data points - zero at span start and the real value at emission time - so the metric appears in Metrics Drilldown (single-point counters return no data). Use `last_over_time()` for exact values (`increase()` extrapolates).
+
+Exemplars link each data point to its trace/span. In Grafana, these appear as clickable dots on metric graphs that navigate directly to the trace in Tempo.
+
+Only `step.name` is included as a metric datapoint attribute (becoming the `step_name` Prometheus/Mimir label). High-cardinality span attributes (`generation.id`, `image`, etc.) are excluded from metrics so that metric labels stay within the set of Loki stream labels. Metrics Drilldown Related Logs requires all metric labels to exist in both Loki and Prometheus/Mimir. `step_name` is a stream label for both OTLP logs and Kubernetes pod logs. These attributes are still available via exemplar \-> trace drill-down and in OTLP log structured metadata.
+
+== OTLP Transport Protocol
+
+Quarkus services use gRPC (port 4317). Tekton task steps use HTTP/JSON (port 4318).
+
+The split is driven by what each supports natively:
+
+* Quarkus has a built-in gRPC OTLP exporter (`quarkus-opentelemetry`). gRPC uses protobuf encoding which is more compact and efficient than JSON, and supports multiplexing and streaming over a single connection. This is the default and preferred transport for telemetry.
+* Bash task steps send telemetry via `curl`, which can only use HTTP. The OTLP HTTP/JSON endpoints (/v1/traces, /v1/logs, /v1/metrics) accept JSON payloads, with no gRPC client or protobuf tooling required - just `curl` and `jq`. The tradeoff is no streaming and larger payloads, which is acceptable for the low volume of telemetry produced.
+
+=== Config Differences
+
+==== Quarkus Services - gRPC
+
+[source,yaml]
+----
+QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT: "http://<collector>:4317"
+QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+----
+
+==== Bash Task Steps - HTTP/JSON
+
+[source,yaml]
+----
+OTEL_EXPORTER_OTLP_ENDPOINT: "http://<collector>:4318"
+----
+
+Both ports are served by the same OTel collector. No data is lost or treated differently - the transport is purely a delivery mechanism.
+
+== Cross-Signal Correlations in Grafana
+
+The configuration above enables the following navigations between signals in Grafana. 'Working' means clickable links exist in relevant UI.
+
+[cols="1,1,2"]
+|===
+|Direction |Status |Mechanism
+
+|Metrics \-> Traces
+|Working
+|Exemplar dots on metric graphs link to Tempo traces
+
+|Metrics \-> Logs
+|Working
+|Metrics Drilldown 'Related Logs' (requires active label filter)
+
+|Logs \-> Traces
+|Working
+|`traceId` derived field links to Tempo
+
+|Logs \-> Metrics
+|Partial
+|Grafana correlation in Explore only (Logs Drilldown limitation)
+
+|Logs \-> Profiles
+|Partial
+|Grafana correlation in Explore only (Logs Drilldown limitation)
+
+|Traces \-> Logs
+|Working
+|`tracesToLogsV2` filters by `service.name` and `traceId`
+
+|Traces \-> Metrics
+|Working
+|`tracesToMetrics` maps `service.name` \-> `service`
+
+|Traces \-> Profiles
+|Broken
+|Upstream bug grafana/profiles-drilldown#590
+
+|Profiles \-> *
+|Missing
+|No outbound correlation config on Pyroscope datasource
+|===
+
+=== Key Dependencies
+
+* Metrics \-> Traces requires cumulative counter type (not gauge) for exemplars
+* Metrics \-> Logs requires shared labels between Mimir and Loki (`namespace`, `job`, `step_name`)
+* Logs \-> Traces requires `traceId` in structured metadata or log text
+* Traces \-> Logs requires `service.name` resource attribute on spans
