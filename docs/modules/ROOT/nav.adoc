@@ -1,5 +1,6 @@
 * xref:index.adoc[Welcome]
 * xref:overview.adoc[System Overview]
+* xref:component-registry.adoc[Component Registry]
 * xref:development-guide.adoc[Development Guide]
 * xref:observability-standards.adoc[Observability Standards]
 

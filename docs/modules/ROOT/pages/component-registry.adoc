@@ -1,0 +1,108 @@
+= Component Registry
+:toc:
+:toclevels: 3
+
+This page lists all container images, Helm charts, and source repositories for the SBOMer microservice architecture components.
+
+== Core Services
+
+=== sbom-service
+Core orchestrator service that manages the SBOM generation and enhancement process.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/sbom-service
+|Service Image |`quay.io/sbomer/sbom-service`
+|Helm Chart |`quay.io/sbomer/sbom-service-chart`
+|===
+
+=== sbomer-ui
+User interface for the SBOMer system.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/sbomer-ui
+|Service Image |`quay.io/sbomer/ui`
+|Helm Chart |`quay.io/sbomer/ui-chart`
+|===
+
+=== manifest-storage-service
+SBOM Object Storage Service for uploading and downloading SBOMs.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/manifest-storage-service
+|Service Image |`quay.io/sbomer/manifest-storage-service`
+|Helm Chart |`quay.io/sbomer/manifest-storage-service-chart`
+|===
+
+== Generator Components
+
+=== syft-generator
+SBOM generator component using the Syft tool to scan container images and generate SBOMs.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/syft-generator
+|Service Image |`quay.io/sbomer/syft-generator`
+|TaskRun Image |`quay.io/sbomer/syft-agent`
+|Helm Chart |`quay.io/sbomer/syft-generator-chart`
+|===
+
+=== java-generator
+Generator for Java-based projects.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/java-generator
+|Service Image |`quay.io/sbomer/java-generator`
+|TaskRun Image |`quay.io/sbomer/java-agent`
+|Helm Chart |`quay.io/sbomer/java-generator-chart`
+|===
+
+=== dela-generator
+Generator component for DELA (Deliverable Analyzer).
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/dela-generator
+|Service Image |`quay.io/sbomer/dela-generator`
+|Helm Chart |`quay.io/sbomer/dela-generator-chart`
+|===
+
+=== pnc-generator
+Generator for PNC (Project Newcastle) build system.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/pnc-generator
+|Service Image |`quay.io/sbomer/pnc-generator`
+|Helm Chart |`quay.io/sbomer/pnc-generator-chart`
+|===
+
+== Enhancer Components
+
+Currently no enhancers are available.
+
+== Publisher Components
+
+=== dtrack-publisher
+Publisher component for publishing SBOMs to OWASP Dependency-Track.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/dtrack-publisher
+|Service Image |`quay.io/sbomer/dtrack-publisher`
+|Helm Chart |`quay.io/sbomer/dtrack-publisher-chart`
+|===
+
+== Platform Chart
+
+=== sbomer-platform
+The parent Helm chart that includes all component charts as dependencies and manages the deployment of the entire SBOMer system.
+
+[cols="1,3"]
+|===
+|Repository |https://github.com/sbomer-project/sbomer-platform
+|Helm Chart |`quay.io/sbomer/sbomer-platform-chart`
+|===
